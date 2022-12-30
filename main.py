@@ -316,7 +316,7 @@ class DenizYatirim():
         """
         try:
             f = inspect.stack()[0][3]
-            end_point = URL_DELETEORDER
+            end_point = URL_DELETEORDERVIOP
             payload = {
                 'id': id,
                 'adet': adet,
