@@ -1,8 +1,4 @@
-import requests
-import hashlib
-import json
-import base64
-import inspect
+import requests, hashlib, json, base64, inspect
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
