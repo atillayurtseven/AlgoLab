@@ -229,6 +229,7 @@ class DenizYatirim():
         }
         """
         try:
+            f = inspect.stack()[0][3]
             end_point = URL_SENDORDER
             payload = {
                 "symbol": symbol,
@@ -241,15 +242,8 @@ class DenizYatirim():
                 "subAccount": subAccount
             }
             resp = self.post(end_point, payload)
-            try:
-                data = resp.json()
-                return data
-            except:
-                f = inspect.stack()[0][3]
-                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
-                print(resp.text)
+            return self.error_check(resp, f)
         except Exception as e:
-            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def ModifyOrder(self, id, price, lot, viop, subAccount):
@@ -270,6 +264,7 @@ class DenizYatirim():
         }
         """
         try:
+            f = inspect.stack()[0][3]
             end_point = URL_MODIFYORDER
             payload = {
                 'id': id,
@@ -279,15 +274,8 @@ class DenizYatirim():
                 'subAccount': subAccount
             }
             resp = self.post(end_point, payload)
-            try:
-                data = resp.json()
-                return data
-            except:
-                f = inspect.stack()[0][3]
-                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
-                print(resp.text)
+            return self.error_check(resp, f)
         except Exception as e:
-            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def DeleteOrder(self, id, subAccount):
@@ -302,21 +290,15 @@ class DenizYatirim():
         }
         """
         try:
+            f = inspect.stack()[0][3]
             end_point = URL_DELETEORDER
             payload = {
                 'id': id,
                 'subAccount': subAccount
             }
             resp = self.post(end_point, payload)
-            try:
-                data = resp.json()
-                return data
-            except:
-                f = inspect.stack()[0][3]
-                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
-                print(resp.text)
+            return self.error_check(resp, f)
         except Exception as e:
-            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def DeleteOrderViop(self, id, adet, subAccount):
@@ -333,6 +315,7 @@ class DenizYatirim():
         }
         """
         try:
+            f = inspect.stack()[0][3]
             end_point = URL_DELETEORDER
             payload = {
                 'id': id,
@@ -340,15 +323,8 @@ class DenizYatirim():
                 'subAccount': subAccount
             }
             resp = self.post(end_point, payload)
-            try:
-                data = resp.json()
-                return data
-            except:
-                f = inspect.stack()[0][3]
-                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
-                print(resp.text)
+            return self.error_check(resp, f)
         except Exception as e:
-            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     # TOOLS
