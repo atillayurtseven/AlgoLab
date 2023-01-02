@@ -1,11 +1,6 @@
-import requests, hashlib, json, base64, inspect
+import requests, hashlib, json, base64, inspect, time
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
-
-# USER INFO
-API_KEY = "API_KEY"
-USERNAME = "TC_KIMLIK_NO"
-PASSWORD = "DENIZBANK_HESAP_ŞİFRENİZ"
 
 api_hostname = "https://www.algolab.com.tr"
 api_url = api_hostname + "/api"
@@ -27,23 +22,33 @@ URL_DELETEORDERVIOP = "/api/DeleteOrderViop"
 URL_SESSIONREFRESH = "/api/SessionRefresh"
 URL_GETCANDLEDATA = "/api/GetCandleData"
 
-class DenizYatirim():
-    def __init__(self, verbose=True):
-        print("Sistem hazırlanıyor...")
+class AlgoLab():
+    def __init__(self, api_key, username, password, verbose=True):
+        """
+        api_key: API_KEY
+        username: TC Kimlik No
+        password: DENIZBANK_HESAP_ŞİFRENİZ
+        verbose: True, False - İşlemlerin çıktısını yazdırır
+        """
+        if verbose:
+            print("Sistem hazırlanıyor...")
         try:
-            self.api_code = API_KEY.split("-")[1]
+            self.api_code = api_key.split("-")[1]
         except:
-            self.api_code = API_KEY
+            self.api_code = api_key
         self.api_key = "API-" + self.api_code
-        self.username = USERNAME
-        self.password = PASSWORD
+        self.last_request = 0.0
+        self.username = username
+        self.password = password
         self.api_hostname = api_hostname
         self.api_url = api_url
         self.headers = {"APIKEY": self.api_key}
+        self.ws = None
         self.verbose = verbose
         self.reset()
 
     def reset(self):
+        self.ohlc = []
         self.token = ""
         self.new_hour = False
         self.sms_code = ""
@@ -71,7 +76,8 @@ class DenizYatirim():
             if succ:
                 self.token = content["token"]
                 if self.verbose:
-                    print(f"Login başarılı.\nToken: {self.token}")
+                    print("Login başarılı.")
+                    #print(f"Token: {self.token}")
                     return True
             else:
                 if self.verbose:
@@ -100,17 +106,14 @@ class DenizYatirim():
             if succ:
                 self.hash = content["Hash"]
                 if self.verbose:
-                    print(f"Login kontrolü başarılı.\nHash: {self.hash}")
+                    print("Login kontrolü başarılı.")
+                    #print(f"Hash: {self.hash}")
                     return True
             else:
                 if self.verbose:
                     print(f"Login kontrolü başarısız.\nMesaj: {msg}")
         except Exception as e:
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
-
-    def Login(self):
-        if self.LoginUser():
-            return self.LoginUserControl()
 
     # REQUESTS
 
@@ -225,7 +228,6 @@ class DenizYatirim():
         }
         """
         try:
-            f = inspect.stack()[0][3]
             end_point = URL_SENDORDER
             payload = {
                 "symbol": symbol,
@@ -238,8 +240,15 @@ class DenizYatirim():
                 "subAccount": subAccount
             }
             resp = self.post(end_point, payload)
-            return self.error_check(resp, f)
+            try:
+                data = resp.json()
+                return data
+            except:
+                f = inspect.stack()[0][3]
+                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
+                print(resp.text)
         except Exception as e:
+            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def ModifyOrder(self, id, price, lot, viop, subAccount):
@@ -260,7 +269,6 @@ class DenizYatirim():
         }
         """
         try:
-            f = inspect.stack()[0][3]
             end_point = URL_MODIFYORDER
             payload = {
                 'id': id,
@@ -270,8 +278,15 @@ class DenizYatirim():
                 'subAccount': subAccount
             }
             resp = self.post(end_point, payload)
-            return self.error_check(resp, f)
+            try:
+                data = resp.json()
+                return data
+            except:
+                f = inspect.stack()[0][3]
+                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
+                print(resp.text)
         except Exception as e:
+            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def DeleteOrder(self, id, subAccount):
@@ -286,15 +301,21 @@ class DenizYatirim():
         }
         """
         try:
-            f = inspect.stack()[0][3]
             end_point = URL_DELETEORDER
             payload = {
                 'id': id,
                 'subAccount': subAccount
             }
             resp = self.post(end_point, payload)
-            return self.error_check(resp, f)
+            try:
+                data = resp.json()
+                return data
+            except:
+                f = inspect.stack()[0][3]
+                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
+                print(resp.text)
         except Exception as e:
+            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def DeleteOrderViop(self, id, adet, subAccount):
@@ -311,24 +332,35 @@ class DenizYatirim():
         }
         """
         try:
-            f = inspect.stack()[0][3]
-            end_point = URL_DELETEORDERVIOP
+            end_point = URL_DELETEORDER
             payload = {
                 'id': id,
                 'adet': adet,
                 'subAccount': subAccount
             }
             resp = self.post(end_point, payload)
-            return self.error_check(resp, f)
+            try:
+                data = resp.json()
+                return data
+            except:
+                f = inspect.stack()[0][3]
+                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
+                print(resp.text)
         except Exception as e:
+            f = inspect.stack()[0][3]
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     # TOOLS
 
     def error_check(self, resp, f):
         try:
-            data = resp.json()
-            return data
+            if resp.status_code == 200:
+                data = resp.json()
+                return data
+            else:
+                print(f"Error kodu: {resp.status_code}")
+                print(resp.text)
+                return False
         except:
             print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
             print(resp.text)
@@ -344,13 +376,10 @@ class DenizYatirim():
         return base64.b64encode(r).decode("utf-8")
 
     def make_checker(self, endpoint, payload):
-        body = json.dumps(payload)
-        """
         if len(payload) > 0:
-            body = str(payload)
+            body = json.dumps(payload).replace(' ', '')
         else:
             body = ""
-        """
         data = self.api_key + self.api_hostname + endpoint + body
         checker = hashlib.sha256(data.encode('utf-8')).hexdigest()
         return checker
@@ -358,30 +387,25 @@ class DenizYatirim():
     def _request(self, method, url, endpoint, payload, headers):
         response = ""
         if method == "POST":
+            t = time.time()
+            diff = t - self.last_request
+            wait_for = self.last_request > 0.0 and diff < 1.0 # son işlemden geçen süre 1 saniyeden küçükse bekle
+            if wait_for:
+                time.sleep(1 - diff + 0.1)
             response = requests.post(url + endpoint, json=payload, headers=headers)
+            self.last_request = time.time()
         return response
 
     def post(self, endpoint, payload, login=False):
+        url = self.api_url
         if not login:
             checker = self.make_checker(endpoint, payload)
-            headers = {"APIKEY": self.api_key,
-                       "Authorization": self.hash,
-                       "Checker": checker}
-            url = self.api_url
+            headers = {"APIKEY": self .api_key,
+                       "Checker": checker,
+                       "Authorization": self.hash
+                       }
+            resp = self._request("POST", url, endpoint, payload=payload, headers=headers)
         else:
             headers = {"APIKEY": self.api_key}
-            url = self.api_url
-        return self._request("POST", url, endpoint, payload=payload, headers=headers)
-
-if __name__ == "__main__":
-    d = DenizYatirim()
-    if d.LoginUser():
-        if d.LoginUserControl():
-            eq = d.GetEquityInfo("ARCLK")
-            if eq:
-                print(eq)
-        else:
-            print("Login kontrolü başarısız oldu")
-    else:
-        print("Login başarısız")
-    print("Sonlandırıldı")
+            resp = self._request("POST", url, endpoint, payload=payload, headers=headers)
+        return resp
