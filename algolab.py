@@ -1,29 +1,15 @@
+import datetime
 import requests, hashlib, json, base64, inspect, time
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
+from threading import Thread
+from config import *
 
-api_hostname = "https://www.algolab.com.tr"
-api_url = api_hostname + "/api"
-socket_url = "wss://www.algolab.com.tr/api/ws"
-
-# ENDPOINTS
-URL_LOGIN_USER = "/api/LoginUser"
-URL_LOGIN_CONTROL = "/api/LoginUserControl"
-URL_GETEQUITYINFO = "/api/GetEquityInfo"
-URL_GETSUBACCOUNTS = "/api/GetSubAccounts"
-URL_INSTANTPOSITION = "/api/InstantPosition"
-URL_TODAYTRANSACTION = "/api/TodaysTransaction"
-URL_VIOPCUSTOMEROVERALL = "/api/ViopCustomerOverall"
-URL_VIOPCUSTOMERTRANSACTIONS = "/api/ViopCustomerTransactions"
-URL_SENDORDER = "/api/SendOrder"
-URL_MODIFYORDER = "/api/ModifyOrder"
-URL_DELETEORDER = "/api/DeleteOrder"
-URL_DELETEORDERVIOP = "/api/DeleteOrderViop"
-URL_SESSIONREFRESH = "/api/SessionRefresh"
-URL_GETCANDLEDATA = "/api/GetCandleData"
+last_request = 0.0
+LOCK = False
 
 class AlgoLab():
-    def __init__(self, api_key, username, password, verbose=True):
+    def __init__(self, api_key, username, password, auto_login=True, keep_alive=True, verbose=True):
         """
         api_key: API_KEY
         username: TC Kimlik No
@@ -37,22 +23,58 @@ class AlgoLab():
         except:
             self.api_code = api_key
         self.api_key = "API-" + self.api_code
-        self.last_request = 0.0
         self.username = username
         self.password = password
         self.api_hostname = api_hostname
         self.api_url = api_url
+        self.auto_login = auto_login
         self.headers = {"APIKEY": self.api_key}
-        self.ws = None
+        self.keep_alive = keep_alive
+        self.thread_keepalive = Thread(target=self.ping)
         self.verbose = verbose
-        self.reset()
-
-    def reset(self):
         self.ohlc = []
         self.token = ""
         self.new_hour = False
         self.sms_code = ""
         self.hash = ""
+        self.start()
+
+    def save_settings(self):
+        data = {
+            "Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "token": self.token,
+            "hash": self.hash
+        }
+        with open("./data.json", "w") as f:
+            # Dosyaya yaz
+            json.dump(data, f)
+
+    def load_settings(self):
+        try:
+            with open("./data.json", "r") as f:
+                data = json.load(f)
+                self.token = data["token"]
+                self.hash = data["hash"]
+                return True
+        except:
+            return False
+
+    def start(self):
+        if self.auto_login:
+            # önceki login bilgileri varsa yükle
+            s = self.load_settings()
+            if not s or not self.is_alive:
+                if self.verbose:
+                    print("Login zaman aşımına uğradı. Yeniden giriş yapılıyor...")
+                if self.LoginUser():
+                    self.LoginUserControl()
+        if self.keep_alive:
+            self.thread_keepalive.start()
+
+    def ping(self):
+        while self.keep_alive:
+            p = self.SessionRefresh(silent=True)
+            time.sleep(60 * 15)
 
     # LOGIN
 
@@ -108,6 +130,7 @@ class AlgoLab():
                 if self.verbose:
                     print("Login kontrolü başarılı.")
                     #print(f"Hash: {self.hash}")
+                    self.save_settings()
                     return True
             else:
                 if self.verbose:
@@ -117,15 +140,16 @@ class AlgoLab():
 
     # REQUESTS
 
-    def SessionRefresh(self):
+    def SessionRefresh(self, silent=False):
         try:
             f = inspect.stack()[0][3]
             endpoint = URL_SESSIONREFRESH
             payload = {}
             resp = self.post(endpoint, payload=payload)
-            return self.error_check(resp, f)
+            return self.error_check(resp, f, silent)
         except Exception as e:
-            print(f"{f}() fonsiyonunda hata oluştu: {e}")
+            if not silent:
+                print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def GetEquityInfo(self, symbol):
         """
@@ -352,18 +376,27 @@ class AlgoLab():
 
     # TOOLS
 
-    def error_check(self, resp, f):
+    def GetIsAlive(self):
+        try:
+            resp = self.SessionRefresh(silent=True)
+            return resp
+        except:
+            return False
+
+    def error_check(self, resp, f, silent=False):
         try:
             if resp.status_code == 200:
                 data = resp.json()
                 return data
             else:
-                print(f"Error kodu: {resp.status_code}")
-                print(resp.text)
+                if not silent:
+                    print(f"Error kodu: {resp.status_code}")
+                    print(resp.text)
                 return False
         except:
-            print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
-            print(resp.text)
+            if not silent:
+                print(f"{f}() fonksiyonunda veri tipi hatası. Veri, json formatından farklı geldi:")
+                print(resp.text)
             return False
 
     def encrypt(self, text):
@@ -385,15 +418,22 @@ class AlgoLab():
         return checker
 
     def _request(self, method, url, endpoint, payload, headers):
-        response = ""
-        if method == "POST":
-            t = time.time()
-            diff = t - self.last_request
-            wait_for = self.last_request > 0.0 and diff < 1.0 # son işlemden geçen süre 1 saniyeden küçükse bekle
-            if wait_for:
-                time.sleep(1 - diff + 0.1)
-            response = requests.post(url + endpoint, json=payload, headers=headers)
-            self.last_request = time.time()
+        global last_request, LOCK
+        while LOCK:
+            time.sleep(0.1)
+        LOCK = True
+        try:
+            response = ""
+            if method == "POST":
+                t = time.time()
+                diff = t - last_request
+                wait_for = last_request > 0.0 and diff < 1.0 # son işlemden geçen süre 1 saniyeden küçükse bekle
+                if wait_for:
+                    time.sleep(1 - diff + 0.1)
+                response = requests.post(url + endpoint, json=payload, headers=headers)
+                last_request = time.time()
+        finally:
+            LOCK = False
         return response
 
     def post(self, endpoint, payload, login=False):
@@ -409,3 +449,5 @@ class AlgoLab():
             headers = {"APIKEY": self.api_key}
             resp = self._request("POST", url, endpoint, payload=payload, headers=headers)
         return resp
+
+    is_alive = property(GetIsAlive)
