@@ -1,6 +1,18 @@
-api_hostname = "https://www.algolab.com.tr"
+hostname = "www.algolab.com.tr"
+api_hostname = f"https://{hostname}"
 api_url = api_hostname + "/api"
-socket_url = "wss://www.algolab.com.tr/api/ws"
+socket_url = f"wss://{hostname}/api/ws"
+
+# MARKETS
+MARKETS = {
+    "VIP": "BIST30 VIOP",
+    "KIYM": "KIYMETLİ MADENLER",
+    "FX": "FOREX",
+    "IMKBH": "BIST SPOT",
+    "IMKBX": "ENDEKS",
+    "INTUSD": "",
+    "INTEUR": "",
+}
 
 # ENDPOINTS
 URL_LOGIN_USER = "/api/LoginUser"
