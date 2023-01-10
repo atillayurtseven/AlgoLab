@@ -378,11 +378,11 @@ class AlgoLab():
 
     def GetIsAlive(self):
         try:
-            resp = self.SessionRefresh(silent=True)
-            return resp
+            #resp = self.SessionRefresh(silent=True)
+            resp = self.GetSubAccounts()
+            return resp["Success"]
         except:
             return False
-
     def error_check(self, resp, f, silent=False):
         try:
             if resp.status_code == 200:
