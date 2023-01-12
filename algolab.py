@@ -68,6 +68,9 @@ class AlgoLab():
                     print("Login zaman aşımına uğradı. Yeniden giriş yapılıyor...")
                 if self.LoginUser():
                     self.LoginUserControl()
+            else:
+                if self.verbose:
+                    print("Otomatik login başarılı...")
         if self.keep_alive:
             self.thread_keepalive.start()
 
@@ -164,12 +167,12 @@ class AlgoLab():
         except Exception as e:
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
-    def GetSubAccounts(self):
+    def GetSubAccounts(self, silent=False):
         try:
             f = inspect.stack()[0][3]
             end_point = URL_GETSUBACCOUNTS
             resp = self.post(end_point, {})
-            return self.error_check(resp, f)
+            return self.error_check(resp, f, silent=silent)
         except Exception as e:
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
@@ -379,10 +382,11 @@ class AlgoLab():
     def GetIsAlive(self):
         try:
             #resp = self.SessionRefresh(silent=True)
-            resp = self.GetSubAccounts()
+            resp = self.GetSubAccounts(silent=True)
             return resp["Success"]
         except:
             return False
+
     def error_check(self, resp, f, silent=False):
         try:
             if resp.status_code == 200:
