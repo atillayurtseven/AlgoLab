@@ -14,7 +14,6 @@ class AlgoLabSocket():
         """
         self.verbose = verbose
         self.callback = callback
-        self.arbitraj = {}
         self.thread_running = False
         self.kurum = {}
         self.hisse = {}
