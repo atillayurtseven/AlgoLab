@@ -102,8 +102,7 @@ class AlgoLab():
                 self.token = content["token"]
                 if self.verbose:
                     print("Login başarılı.")
-                    #print(f"Token: {self.token}")
-                    return True
+                return True
             else:
                 if self.verbose:
                     print(f"Login Başarısız. Mesaj: {msg}")
@@ -133,8 +132,8 @@ class AlgoLab():
                 if self.verbose:
                     print("Login kontrolü başarılı.")
                     #print(f"Hash: {self.hash}")
-                    self.save_settings()
-                    return True
+                self.save_settings()
+                return True
             else:
                 if self.verbose:
                     print(f"Login kontrolü başarısız.\nMesaj: {msg}")
@@ -444,14 +443,13 @@ class AlgoLab():
         url = self.api_url
         if not login:
             checker = self.make_checker(endpoint, payload)
-            headers = {"APIKEY": self .api_key,
+            headers = {"APIKEY": self.api_key,
                        "Checker": checker,
                        "Authorization": self.hash
                        }
-            resp = self._request("POST", url, endpoint, payload=payload, headers=headers)
         else:
             headers = {"APIKEY": self.api_key}
-            resp = self._request("POST", url, endpoint, payload=payload, headers=headers)
+        resp = self._request("POST", url, endpoint, payload=payload, headers=headers)
         return resp
 
     is_alive = property(GetIsAlive)
