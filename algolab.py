@@ -1,8 +1,9 @@
 import datetime
 import requests, hashlib, json, base64, inspect, time
 from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad
-from threading import Thread
+from threading import Thread, Event
 from config import *
 
 last_request = 0.0
@@ -22,6 +23,7 @@ class AlgoLab():
             self.api_code = api_key.split("-")[1]
         except:
             self.api_code = api_key
+
         self.api_key = "API-" + self.api_code
         self.username = username
         self.password = password
@@ -31,6 +33,7 @@ class AlgoLab():
         self.headers = {"APIKEY": self.api_key}
         self.keep_alive = keep_alive
         self.thread_keepalive = Thread(target=self.ping)
+        self.exit = Event()
         self.verbose = verbose
         self.ohlc = []
         self.token = ""
@@ -75,12 +78,11 @@ class AlgoLab():
             self.thread_keepalive.start()
 
     def ping(self):
-        while self.keep_alive:
+        while self.exit.is_set():
             p = self.SessionRefresh(silent=True)
             time.sleep(60 * 15)
 
     # LOGIN
-
     def LoginUser(self):
         try:
             if self.verbose:
@@ -95,9 +97,9 @@ class AlgoLab():
             if not login_user:
                 return False
             login_user = resp.json()
-            succ = login_user["Success"]
-            msg = login_user["Message"]
-            content = login_user["Content"]
+            succ = login_user["success"]
+            msg = login_user["message"]
+            content = login_user["content"]
             if succ:
                 self.token = content["token"]
                 if self.verbose:
@@ -124,11 +126,11 @@ class AlgoLab():
             if not login_control:
                 return False
             login_control = resp.json()
-            succ = login_control["Success"]
-            msg = login_control["Message"]
-            content = login_control["Content"]
+            succ = login_control["success"]
+            msg = login_control["message"]
+            content = login_control["content"]
             if succ:
-                self.hash = content["Hash"]
+                self.hash = content["hash"]
                 if self.verbose:
                     print("Login kontrolü başarılı.")
                     #print(f"Hash: {self.hash}")
@@ -382,7 +384,7 @@ class AlgoLab():
         try:
             #resp = self.SessionRefresh(silent=True)
             resp = self.GetSubAccounts(silent=True)
-            return resp["Success"]
+            return resp["success"]
         except:
             return False
 
@@ -406,8 +408,8 @@ class AlgoLab():
         iv = b'\0' * 16
         key = base64.b64decode(self.api_code.encode('utf-8'))
         cipher = AES.new(key, AES.MODE_CBC, iv)
-        bytes = text.encode()
-        padded_bytes = pad(bytes, 16)
+        encoded_bytes = text.encode()
+        padded_bytes = pad(encoded_bytes, 16)
         r = cipher.encrypt(padded_bytes)
         return base64.b64encode(r).decode("utf-8")
 
@@ -439,6 +441,10 @@ class AlgoLab():
             LOCK = False
         return response
 
+    def kill_self(self):
+        self.exit.set()
+        print("Sonlandırıldı.")
+    
     def post(self, endpoint, payload, login=False):
         url = self.api_url
         if not login:
