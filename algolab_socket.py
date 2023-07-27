@@ -29,12 +29,6 @@ class AlgoLabSocket():
             "Checker": self.checker
         }
 
-    def load_ciphers(self):
-        output = subprocess.run(["openssl", "ciphers"], capture_output=True).stdout
-        output_str = output.decode("utf-8")
-        ciphers = output_str.strip().split("\n")
-        return ciphers[0]
-
     def close(self):
         self._connected = False
         self.ws = None
@@ -47,9 +41,7 @@ class AlgoLabSocket():
         except:
             pass
         context = ssl.create_default_context()
-        context.minimum_version = ssl.TLSVersion.TLSv1_2
-        if ciphers != "":
-            context.set_ciphers(ciphers)
+        context.set_ciphers("DEFAULT")
         try:
             sock = socket.create_connection((hostname, 443))
             ssock = context.wrap_socket(sock, server_hostname=hostname)
@@ -78,7 +70,7 @@ class AlgoLabSocket():
         :param d: Dict
         """
         try:
-            data = {"Token": self.hash}
+            data = {"token": self.hash}
             for s in d:
                 data[s] = d[s]
             resp = self.ws.send(json.dumps(data))

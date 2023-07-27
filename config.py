@@ -1,3 +1,4 @@
+version = "2.1.1"
 hostname = "www.algolab.com.tr"
 api_hostname = f"https://{hostname}"
 api_url = api_hostname + "/api"

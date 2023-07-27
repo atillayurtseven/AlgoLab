@@ -9,12 +9,13 @@ last_request = 0.0
 LOCK = False
 
 class AlgoLab():
-    def __init__(self, api_key, username, password, auto_login=True, keep_alive=True, verbose=True):
+    def __init__(self, api_key, username, password, auto_login=True, keep_alive=True, freq=1.1, verbose=True):
         """
         api_key: API_KEY
         username: TC Kimlik No
         password: DENIZBANK_HESAP_ŞİFRENİZ
         verbose: True, False - İşlemlerin çıktısını yazdırır
+        freq: float: İşlemler arası en az beklenmesi gereken süre
         """
         if verbose:
             print("Sistem hazırlanıyor...")
@@ -28,11 +29,11 @@ class AlgoLab():
         self.api_hostname = api_hostname
         self.api_url = api_url
         self.auto_login = auto_login
+        self.freq = freq
         self.headers = {"APIKEY": self.api_key}
         self.keep_alive = keep_alive
         self.thread_keepalive = Thread(target=self.ping)
         self.verbose = verbose
-        self.ohlc = []
         self.token = ""
         self.new_hour = False
         self.sms_code = ""
@@ -40,14 +41,19 @@ class AlgoLab():
         self.start()
 
     def save_settings(self):
-        data = {
-            "Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "token": self.token,
-            "hash": self.hash
-        }
-        with open("./data.json", "w") as f:
-            # Dosyaya yaz
-            json.dump(data, f)
+        try:
+            data = {
+                "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "token": self.token,
+                "hash": self.hash
+            }
+            with open("./data.json", "w") as f:
+                # Dosyaya yaz
+                json.dump(data, f)
+            return True
+        except Exception as e:
+            print(f"Seçenekler kaydedilirken hata oluştu: {e}")
+            return False
 
     def load_settings(self):
         try:
@@ -56,7 +62,8 @@ class AlgoLab():
                 self.token = data["token"]
                 self.hash = data["hash"]
                 return True
-        except:
+        except Exception as e:
+            print(f"Seçenekler yüklenirken hata oluştu: {e}")
             return False
 
     def start(self):
@@ -88,16 +95,16 @@ class AlgoLab():
             f = inspect.stack()[0][3]
             u = self.encrypt(self.username)
             p = self.encrypt(self.password)
-            payload = {"Username": u, "Password": p}
+            payload = {"username": u, "password": p}
             endpoint = URL_LOGIN_USER
             resp = self.post(endpoint=endpoint, payload=payload, login=True)
             login_user = self.error_check(resp, f)
             if not login_user:
                 return False
             login_user = resp.json()
-            succ = login_user["Success"]
-            msg = login_user["Message"]
-            content = login_user["Content"]
+            succ = login_user["success"]
+            msg = login_user["message"]
+            content = login_user["content"]
             if succ:
                 self.token = content["token"]
                 if self.verbose:
@@ -117,18 +124,18 @@ class AlgoLab():
             f = inspect.stack()[0][3]
             t = self.encrypt(self.token)
             s = self.encrypt(self.sms_code)
-            payload = {'token': t, 'Password': s}
+            payload = {'token': t, 'password': s}
             endpoint = URL_LOGIN_CONTROL
             resp = self.post(endpoint, payload=payload, login=True)
             login_control = self.error_check(resp, f)
             if not login_control:
                 return False
             login_control = resp.json()
-            succ = login_control["Success"]
-            msg = login_control["Message"]
-            content = login_control["Content"]
+            succ = login_control["success"]
+            msg = login_control["message"]
+            content = login_control["content"]
             if succ:
-                self.hash = content["Hash"]
+                self.hash = content["hash"]
                 if self.verbose:
                     print("Login kontrolü başarılı.")
                     #print(f"Hash: {self.hash}")
@@ -179,7 +186,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_INSTANTPOSITION
-            payload = {'Subaccount': sub_account}
+            payload = {'subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -189,7 +196,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_TODAYTRANSACTION
-            payload = {'Subaccount': sub_account}
+            payload = {'subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -199,7 +206,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_VIOPCUSTOMEROVERALL
-            payload = {'Subaccount': sub_account}
+            payload = {'subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -209,7 +216,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_VIOPCUSTOMERTRANSACTIONS
-            payload = {'Subaccount': sub_account}
+            payload = {'subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -378,13 +385,16 @@ class AlgoLab():
 
     # TOOLS
 
-    def GetIsAlive(self):
+    def get_is_alive(self):
         try:
             #resp = self.SessionRefresh(silent=True)
             resp = self.GetSubAccounts(silent=True)
-            return resp["Success"]
+            return resp["success"]
         except:
             return False
+
+    def get_logged_in(self):
+        return self.is_alive
 
     def error_check(self, resp, f, silent=False):
         try:
@@ -430,9 +440,9 @@ class AlgoLab():
             if method == "POST":
                 t = time.time()
                 diff = t - last_request
-                wait_for = last_request > 0.0 and diff < 1.0 # son işlemden geçen süre 1 saniyeden küçükse bekle
+                wait_for = last_request > 0.0 and diff < self.freq # son işlemden geçen süre freq saniyeden küçükse bekle
                 if wait_for:
-                    time.sleep(1 - diff + 0.1)
+                    time.sleep(self.freq - diff + 0.1)
                 response = requests.post(url + endpoint, json=payload, headers=headers)
                 last_request = time.time()
         finally:
@@ -452,4 +462,5 @@ class AlgoLab():
         resp = self._request("POST", url, endpoint, payload=payload, headers=headers)
         return resp
 
-    is_alive = property(GetIsAlive)
+    is_alive = property(get_is_alive)
+    logged_in = property(get_logged_in)
