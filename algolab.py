@@ -186,7 +186,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_INSTANTPOSITION
-            payload = {'subaccount': sub_account}
+            payload = {'Subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -196,7 +196,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_TODAYTRANSACTION
-            payload = {'subaccount': sub_account}
+            payload = {'Subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -206,7 +206,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_VIOPCUSTOMEROVERALL
-            payload = {'subaccount': sub_account}
+            payload = {'Subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -216,7 +216,7 @@ class AlgoLab():
         try:
             f = inspect.stack()[0][3]
             end_point = URL_VIOPCUSTOMERTRANSACTIONS
-            payload = {'subaccount': sub_account}
+            payload = {'Subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
