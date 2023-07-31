@@ -1,8 +1,9 @@
 import datetime
 import requests, hashlib, json, base64, inspect, time
 from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad
-from threading import Thread
+from threading import Thread, Event
 from config import *
 
 last_request = 0.0
@@ -23,6 +24,7 @@ class AlgoLab():
             self.api_code = api_key.split("-")[1]
         except:
             self.api_code = api_key
+
         self.api_key = "API-" + self.api_code
         self.username = username
         self.password = password
@@ -33,6 +35,7 @@ class AlgoLab():
         self.headers = {"APIKEY": self.api_key}
         self.keep_alive = keep_alive
         self.thread_keepalive = Thread(target=self.ping)
+        self.exit = Event()
         self.verbose = verbose
         self.token = ""
         self.new_hour = False
@@ -82,12 +85,11 @@ class AlgoLab():
             self.thread_keepalive.start()
 
     def ping(self):
-        while self.keep_alive:
+        while self.exit.is_set():
             p = self.SessionRefresh(silent=True)
             time.sleep(60 * 15)
 
     # LOGIN
-
     def LoginUser(self):
         try:
             if self.verbose:
@@ -416,8 +418,8 @@ class AlgoLab():
         iv = b'\0' * 16
         key = base64.b64decode(self.api_code.encode('utf-8'))
         cipher = AES.new(key, AES.MODE_CBC, iv)
-        bytes = text.encode()
-        padded_bytes = pad(bytes, 16)
+        encoded_bytes = text.encode()
+        padded_bytes = pad(encoded_bytes, 16)
         r = cipher.encrypt(padded_bytes)
         return base64.b64encode(r).decode("utf-8")
 
@@ -449,6 +451,10 @@ class AlgoLab():
             LOCK = False
         return response
 
+    def kill_self(self):
+        self.exit.set()
+        print("Sonlandırıldı.")
+    
     def post(self, endpoint, payload, login=False):
         url = self.api_url
         if not login:
