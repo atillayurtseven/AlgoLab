@@ -9,8 +9,7 @@ USERNAME = "TC_KİMLİK_NO"
 PASSWORD = "DENİZBANK_ŞİFRENİZ"
 
 if __name__ == "__main__":
-    symbol = "GARAN"
-    period = "60" # 60 dk
+
     algo = AlgoLab(api_key=API_KEY, username=USERNAME, password=PASSWORD, auto_login=True)
     soket = AlgoLabSocket(algo.api_key, algo.hash, "T")
     soket.connect()
