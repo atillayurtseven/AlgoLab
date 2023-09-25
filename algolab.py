@@ -160,6 +160,16 @@ class AlgoLab():
             if not silent:
                 print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
+    def Portfolio(self):
+        try:
+            f = inspect.stack()[0][3]
+            endpoint = URL_PORTOLIO
+            payload = {"Subaccount": ""}
+            resp = self.post(endpoint, payload=payload)
+            return self.error_check(resp, f)
+        except Exception as e:
+            print(f"{f}() fonsiyonunda hata oluştu: {e}")
+
     def GetEquityInfo(self, symbol):
         """
         :String symbol: Sembol Kodu Örn: ARCLK
@@ -235,9 +245,19 @@ class AlgoLab():
         except Exception as e:
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
+    def CashFlow(self, sub_account=""):
+        try:
+            f = inspect.stack()[0][3]
+            end_point = URL_CASHFLOW
+            payload = {'Subaccount': sub_account}
+            resp = self.post(end_point, payload)
+            return self.error_check(resp, f)
+        except Exception as e:
+            print(f"{f}() fonsiyonunda hata oluştu: {e}")
+
     # ORDERS
 
-    def SendOrder(self, symbol, direction, pricetype, price, lot, sms, email, subAccount):
+    def SendOrder(self, symbol, direction, pricetype, lot, price=0.0, sms=False, email=False, subAccount=""):
         """
         :String symbol: Sembol Kodu
         :String direction: İşlem Yönü: BUY / SELL (Alış/Satış)
@@ -266,12 +286,14 @@ class AlgoLab():
                 "symbol": symbol,
                 "direction": direction,
                 "pricetype": pricetype,
-                "price": price,
-                "lot": lot,
+                "price": str(price),
+                "lot": str(lot),
                 "sms": sms,
                 "email": email,
                 "subAccount": subAccount
             }
+            #if not price is None:
+            #    payload["price"] = str(price)
             resp = self.post(end_point, payload)
             try:
                 data = resp.json()
@@ -384,6 +406,22 @@ class AlgoLab():
             print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     # TOOLS
+    def AccountExtre(self, sub_account="", start_date=None, end_date=None):
+        """
+        start_date: başlangıç tarihi "2023-07-01 00:00:00" formatında
+        end_date: bitiş tarihi "2023-07-01 00:00:00" formatında
+        """
+        try:
+            f = inspect.stack()[0][3]
+            end_point = URL_ACCOUNTEXTRE
+            payload = {'Subaccount': sub_account,
+                'start': start_date,
+                'end': end_date
+            }
+            resp = self.post(end_point, payload)
+            return self.error_check(resp, f)
+        except Exception as e:
+            print(f"{f}() fonsiyonunda hata oluştu: {e}")
 
     def get_is_alive(self):
         try:
