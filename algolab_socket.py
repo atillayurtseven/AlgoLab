@@ -68,7 +68,6 @@ class AlgoLabSocket():
             return False
         if self.heart_beat:
             r = self.ping()
-            #print("Ping:", r, datetime.datetime.now())
         return data
 
     def send(self, d):

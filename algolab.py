@@ -138,7 +138,6 @@ class AlgoLab():
                 self.hash = content["hash"]
                 if self.verbose:
                     print("Login kontrolü başarılı.")
-                    #print(f"Hash: {self.hash}")
                 self.save_settings()
                 return True
             else:
@@ -240,6 +239,16 @@ class AlgoLab():
                 'symbol': symbol,
                 'period': period
             }
+            resp = self.post(end_point, payload)
+            return self.error_check(resp, f)
+        except Exception as e:
+            print(f"{f}() fonsiyonunda hata oluştu: {e}")
+
+    def RiskSimulation(self, sub_account=""):
+        try:
+            f = inspect.stack()[0][3]
+            end_point = URL_RISKSIMULATION
+            payload = {'Subaccount': sub_account}
             resp = self.post(end_point, payload)
             return self.error_check(resp, f)
         except Exception as e:
@@ -474,15 +483,26 @@ class AlgoLab():
             time.sleep(0.1)
         LOCK = True
         try:
-            response = ""
-            if method == "POST":
-                t = time.time()
-                diff = t - last_request
-                wait_for = last_request > 0.0 and diff < self.freq # son işlemden geçen süre freq saniyeden küçükse bekle
-                if wait_for:
-                    time.sleep(self.freq - diff + 0.1)
-                response = requests.post(url + endpoint, json=payload, headers=headers)
-                last_request = time.time()
+            tries = 0
+            while True:
+                tries += 1
+                try:
+                    response = ""
+                    if method == "POST":
+                        t = time.time()
+                        diff = t - last_request
+                        wait_for = last_request > 0.0 and diff < self.freq # son işlemden geçen süre freq saniyeden küçükse bekle
+                        if wait_for:
+                            time.sleep(self.freq - diff + 0.1)
+                        response = requests.post(url + endpoint, json=payload, headers=headers)
+                    last_request = time.time()
+                    break
+                except Exception as e:
+                    print("_request() exception: ", e)
+                    time.sleep(1)
+                    if tries > 3:
+                        print("Request failed. Quit!")
+                        break
         finally:
             LOCK = False
         return response
