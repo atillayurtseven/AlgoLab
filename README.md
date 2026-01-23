@@ -1,3 +1,6 @@
+# DİKKAT
+
+Maalesef Algolab Platformu ve API hizmeti 31.12.2025 itibarıyla kullanıma kapatılmıştır.
 
 # AlgoLab Python Wrapper
 
